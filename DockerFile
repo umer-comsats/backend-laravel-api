@@ -1,0 +1,33 @@
+FROM php:8.2-apache
+
+# install dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    libzip-dev \
+    zip \
+
+# enable mod rewrite
+RUN a2enmod rewrite
+
+# install php extensions
+RUN docker-php-ext-install mysqli pdo pdo_mysql zip
+
+ENV APACHE_DOCUMENT_ROOT = /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+# copy source files and run composer
+COPY . /var/www/html
+WORKDIR /var/www/html
+
+# install composer
+RUN curl -sS https://getcomposer.org/installer​ | php -- \
+     --install-dir=/usr/local/bin --filename=composer
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# WORKDIR /app
+# COPY . .
+RUN composer install
+
+RUN chown -R www-data:www-data /var/www/html/bootstrap/cache
